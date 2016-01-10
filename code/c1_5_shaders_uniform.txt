@@ -1,0 +1,176 @@
+/*
+  uniform是一种全局变量（global），可将CPU的数据传给GPU
+  数据传递有两种方式：
+  1.shader之间传递，类型和名字一样就可以
+  2.定义uniform，直接由CPU传给GPU
+ */
+
+#define GLEW_STATICC
+
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+#include <iostream>
+#include <cmath>
+
+void key_callback(GLFWwindow* window, int key, int scancode, unsigned int codepoint, int action, int mode);
+
+
+const GLchar* vertexShaderSource = "#version 330 core\n"
+"layout (location = 0) in vec3 position;\n"
+"void main()\n"
+"{\n"
+"gl_Position = vec4(position, 1.0);\n"
+"}\0";
+
+const GLchar* fragmentShaderSource = "#version 330 core\n"
+"out vec4 color;\n"
+"uniform vec4 ourColor;\n"
+"void main()\n"
+"{\n"
+"color = ourColor;\n"
+"}\n\0";
+
+
+int main()
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    // on mac os-x
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    
+    
+    GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", nullptr, nullptr);
+    if (window == nullptr)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+    
+    
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK)
+    {
+        std::cout << "Failed to initialize GLEW" << std::endl;
+        return -1;
+    }
+    
+    glfwSetKeyCallback(window, key_callback);
+    
+    // OSX需这样处理否则无法居中
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    glViewport(0, 0, width, height);
+    
+    
+    GLuint vertexShader;
+    vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    
+    // vertex shader
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
+    
+    
+    GLint success;
+    GLchar infoLog[512];
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+    }
+    
+    // Fragment shader
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragmentShader);
+    
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+    }
+    
+    GLuint shaderProgram;
+    shaderProgram = glCreateProgram();
+    
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+    
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+    }
+    
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    
+    
+    
+    
+    GLfloat vertices[] = {
+        -0.5f, -0.5f, 0.0f,
+        0.5f,  -0.5f, 0.0f,
+        0.0f,  0.5f,  0.0f,
+    };
+    
+    GLuint VBO, VAO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    
+    glBindVertexArray(VAO);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    
+    
+    while(!glfwWindowShouldClose(window))
+    {
+        glfwPollEvents();
+        
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        
+        glUseProgram(shaderProgram);
+        
+        // Update the uniform color
+        GLfloat timeValue = glfwGetTime();
+        GLfloat greenValue = (sin(timeValue) / 2) + 0.5;
+        GLint vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
+        glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+        
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(0);
+        
+        glfwSwapBuffers(window);
+    }
+    
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glfwTerminate();
+    
+    return 0;
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, unsigned int codepoint, int action, int mode)
+{
+    // When a user presses the escape key, we set the WindowShouldClose property to true,
+    // closing the application
+    if(key == GLFW_KEY_ESCAPE && codepoint == GLFW_RELEASE)
+        glfwSetWindowShouldClose(window, GL_TRUE);
+}

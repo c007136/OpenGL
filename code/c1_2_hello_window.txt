@@ -1,0 +1,81 @@
+/*
+ 使用了两个开源库
+ 1.GLFW：跨平台的利用OpenGL和OpenGL ES上下文（contexts）创建窗口，并接收各种事件
+ 2.GLEW：GLEW provides efficient run-time mechanisms for determining which OpenGL extensions are supported on the target platform. OpenGL core and extension functionality is exposed in a single header file.
+ 
+ 创建一个窗口的大致步骤：
+ 1.初始化GLFW
+ 2.设置各种GLFW属性（hints）
+ 3.创建窗口 glfwCreateWindow
+ 4.初始化GLEW
+ 5.设置视口大小
+ 6.建立消息循环（Game Loop）
+   1)抓取事件 glfwPollEvents
+   2)设置背景颜色并用之
+   3)双缓存机制建立
+ 7.程序退出前，释放GLFW中的资源
+ */
+
+#define GLEW_STATICC
+
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+#include <iostream>
+
+void key_callback(GLFWwindow* window, int key, int scancode, unsigned int codepoint, int action, int mode);
+
+int main()
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    // on mac os-x
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    
+    
+    GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", nullptr, nullptr);
+    if (window == nullptr)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+    
+    
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK)
+    {
+        std::cout << "Failed to initialize GLEW" << std::endl;
+        return -1;
+    }
+    
+    glfwSetKeyCallback(window, key_callback);
+    
+    glViewport(0, 0, 800, 600);
+    
+    
+    while(!glfwWindowShouldClose(window))
+    {
+        glfwPollEvents();
+        
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        
+        glfwSwapBuffers(window);
+    }
+    
+    glfwTerminate();
+    
+    return 0;
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, unsigned int codepoint, int action, int mode)
+{
+    // When a user presses the escape key, we set the WindowShouldClose property to true,
+    // closing the application
+    if(key == GLFW_KEY_ESCAPE && codepoint == GLFW_RELEASE)
+        glfwSetWindowShouldClose(window, GL_TRUE);
+}
